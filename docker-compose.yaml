@@ -1,0 +1,148 @@
+version: '3.8'
+services:
+  naming-server:
+    build:
+      context: ./naming-server
+      dockerfile: Dockerfile
+    image: walidchrifd/naming-server
+    container_name: naming-server
+    ports:
+      - "8761:8761"
+    depends_on:
+      - zipkin
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING.ZIPKIN.BASEURL: http://zipkin:9411/
+      MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin:9411/api/v2/spans
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    image: walidchrifd/api-gateway
+    container_name: api-gateway-hotel
+    ports:
+      - "8765:8765"
+    depends_on:
+      - zipkin
+      - naming-server
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING.ZIPKIN.BASEURL: http://zipkin:9411/
+      MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin:9411/api/v2/spans
+  booking-management:
+    build:
+      context: ./booking-management
+    image: walidchrifd/booking-management
+    container_name: booking-management
+    ports:
+      - "8000:8000"
+    depends_on:
+      - naming-server
+      - api-gateway
+      - mysql-booking
+      - zipkin
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-booking:3306/booking
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: pass
+      SPRING.ZIPKIN.BASEURL: http://zipkin:9411/
+      MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin:9411/api/v2/spans
+  customer-management:
+    build:
+      context: ./customer-management
+    image: walidchrifd/customer-management
+    container_name: customer-management
+    ports:
+      - "8100:8100"
+    depends_on:
+      - naming-server
+      - api-gateway
+      - mysql-customer
+      - zipkin
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-customer:3306/customer
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: pass
+      SPRING.ZIPKIN.BASEURL: http://zipkin:9411/
+      MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin:9411/api/v2/spans
+  room-management:
+    build:
+      context: ./room-management
+    image: walidchrifd/room-management
+    container_name: room-management
+    ports:
+      - "8200:8200"
+    depends_on:
+      - naming-server
+      - api-gateway
+      - mongo-room
+      - zipkin
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://mongo-room:27017/room
+      SPRING.ZIPKIN.BASEURL: http://zipkin:9411/
+      MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin:9411/api/v2/spans
+  mysql-booking:
+    image: mysql
+    container_name: mysql-booking
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: booking
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass
+  mysql-customer:
+    image: mysql
+    container_name: mysql-customer
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: customer
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass
+  mongo-room:
+    image: mongo
+    container_name: mongo-room
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: openzipkin-hotel
+    ports:
+      - "9411:9411"
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "22181:2181"
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: 127.0.0.1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+#  kafka-ui:
+#    image: provectuslabs/kafka-ui:latest
+#    depends_on:
+#      - kafka
+#    ports:
+#      - "8090:8080"
+#    environment:
+#      KAFKA_CLUSTERS_0_NAME: local
+#      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+#      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
