@@ -21,7 +21,6 @@
 - **Messaging System**: Integration of RabbitMQ and Kafka for efficient event handling.
 
 ## Technologies Used
-- **Frontend**: [Optional if applicable, e.g., Angular]
 - **Backend**:
   - **Spring Boot**: Framework for building RESTful APIs.
   - **Spring Cloud**: For microservices architecture.
